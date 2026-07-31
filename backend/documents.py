@@ -2,7 +2,14 @@ import os
 import uuid
 import aiofiles
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    UploadFile,
+    File
+)
+
 from fastapi.responses import FileResponse
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +19,11 @@ from database import get_db
 from models import Document, User
 from schemas import DocumentResponse
 from auth import get_current_user
+
+from pdf_extraction import (
+    extract_text_from_pdf,
+    get_extraction_summary
+)
 
 
 router = APIRouter(
@@ -25,6 +37,7 @@ ALLOWED_EXTENSION = ".pdf"
 MAX_FILE_SIZE_MB = 20
 
 
+
 @router.post(
     "/upload",
     response_model=DocumentResponse,
@@ -33,7 +46,7 @@ MAX_FILE_SIZE_MB = 20
 async def upload_document(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
 
     if not file.filename.lower().endswith(ALLOWED_EXTENSION):
@@ -41,6 +54,7 @@ async def upload_document(
             status_code=400,
             detail="Only PDF files are allowed."
         )
+
 
     contents = await file.read()
 
@@ -89,7 +103,10 @@ async def upload_document(
 
     await db.refresh(new_doc)
 
+
     return new_doc
+
+
 
 
 
@@ -99,16 +116,19 @@ async def upload_document(
 )
 async def list_documents(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
 
     result = await db.execute(
-        select(Document).where(
+        select(Document)
+        .where(
             Document.user_id == current_user.id
         )
     )
 
     return result.scalars().all()
+
+
 
 
 
@@ -119,11 +139,13 @@ async def _get_owned_document_or_404(
 ):
 
     result = await db.execute(
-        select(Document).where(
+        select(Document)
+        .where(
             Document.id == document_id,
             Document.user_id == current_user.id
         )
     )
+
 
     document = result.scalar_one_or_none()
 
@@ -139,6 +161,8 @@ async def _get_owned_document_or_404(
 
 
 
+
+
 @router.get(
     "/{document_id}",
     response_model=DocumentResponse
@@ -146,7 +170,7 @@ async def _get_owned_document_or_404(
 async def get_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
 
     return await _get_owned_document_or_404(
@@ -157,13 +181,61 @@ async def get_document(
 
 
 
+
+
+# DAY 10 PDF EXTRACTION TEST
+
+@router.get(
+    "/{document_id}/extract-preview"
+)
+async def extract_preview(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+
+    document = await _get_owned_document_or_404(
+        document_id,
+        db,
+        current_user
+    )
+
+
+    pages = extract_text_from_pdf(
+        document.file_path
+    )
+
+
+    summary = get_extraction_summary(
+        pages
+    )
+
+
+    preview = [
+        {
+            "page_number": page.page_number,
+            "text_preview": page.text[:200]
+        }
+        for page in pages
+    ]
+
+
+    return {
+        "summary": summary,
+        "pages_preview": preview
+    }
+
+
+
+
+
 @router.get(
     "/{document_id}/download"
 )
 async def download_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
 
     document = await _get_owned_document_or_404(
@@ -188,6 +260,8 @@ async def download_document(
 
 
 
+
+
 @router.delete(
     "/{document_id}",
     status_code=204
@@ -195,7 +269,7 @@ async def download_document(
 async def delete_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user)
 ):
 
     document = await _get_owned_document_or_404(
@@ -212,5 +286,6 @@ async def delete_document(
     await db.delete(document)
 
     await db.commit()
+
 
     return None
