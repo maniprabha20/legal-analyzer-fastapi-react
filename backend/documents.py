@@ -1,13 +1,13 @@
 import os
-import uuid
 import aiofiles
+import uuid
 
 from fastapi import (
     APIRouter,
     Depends,
     HTTPException,
     UploadFile,
-    File
+    File,
 )
 
 from fastapi.responses import FileResponse
@@ -18,11 +18,17 @@ from sqlalchemy import select
 from database import get_db
 from models import Document, User
 from schemas import DocumentResponse
+
 from auth import get_current_user
 
 from pdf_extraction import (
     extract_text_from_pdf,
     get_extraction_summary
+)
+
+from chunking import (
+    chunk_pages,
+    count_tokens
 )
 
 
@@ -46,7 +52,7 @@ MAX_FILE_SIZE_MB = 20
 async def upload_document(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
 
     if not file.filename.lower().endswith(ALLOWED_EXTENSION):
@@ -63,7 +69,7 @@ async def upload_document(
     if size_mb > MAX_FILE_SIZE_MB:
         raise HTTPException(
             status_code=400,
-            detail=f"File too large. Max {MAX_FILE_SIZE_MB}MB allowed."
+            detail="File too large"
         )
 
 
@@ -87,6 +93,7 @@ async def upload_document(
     ) as out_file:
 
         await out_file.write(contents)
+
 
 
     new_doc = Document(
@@ -116,7 +123,7 @@ async def upload_document(
 )
 async def list_documents(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
 
     result = await db.execute(
@@ -125,6 +132,7 @@ async def list_documents(
             Document.user_id == current_user.id
         )
     )
+
 
     return result.scalars().all()
 
@@ -170,7 +178,7 @@ async def _get_owned_document_or_404(
 async def get_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
 
     return await _get_owned_document_or_404(
@@ -183,15 +191,13 @@ async def get_document(
 
 
 
-# DAY 10 PDF EXTRACTION TEST
-
 @router.get(
     "/{document_id}/extract-preview"
 )
 async def extract_preview(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
 
     document = await _get_owned_document_or_404(
@@ -211,18 +217,32 @@ async def extract_preview(
     )
 
 
-    preview = [
-        {
-            "page_number": page.page_number,
-            "text_preview": page.text[:200]
-        }
-        for page in pages
-    ]
+    chunks = chunk_pages(
+        pages,
+        chunk_size_tokens=500,
+        overlap_tokens=50
+    )
+
+
+    chunks_preview = []
+
+
+    for c in chunks:
+
+        chunks_preview.append(
+            {
+                "chunk_index": c.chunk_index,
+                "page_number": c.page_number,
+                "token_count": count_tokens(c.content),
+                "text_preview": c.content[:200]
+            }
+        )
 
 
     return {
-        "summary": summary,
-        "pages_preview": preview
+        "extraction_summary": summary,
+        "total_chunks": len(chunks),
+        "chunks_preview": chunks_preview
     }
 
 
@@ -235,7 +255,7 @@ async def extract_preview(
 async def download_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
 
     document = await _get_owned_document_or_404(
@@ -246,9 +266,10 @@ async def download_document(
 
 
     if not os.path.exists(document.file_path):
+
         raise HTTPException(
             status_code=404,
-            detail="File missing from storage"
+            detail="File missing"
         )
 
 
@@ -269,7 +290,7 @@ async def download_document(
 async def delete_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
 
     document = await _get_owned_document_or_404(
