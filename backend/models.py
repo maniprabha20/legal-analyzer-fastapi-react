@@ -21,6 +21,7 @@ class Document(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
     filename: Mapped[str] = mapped_column(String, nullable=False)
+    file_path: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, default="uploaded")
     upload_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
