@@ -21,8 +21,12 @@ from models import Document, User
 from schemas import DocumentResponse
 
 from auth import get_current_user 
-from vector_store import search_similar_chunks 
-from vector_store import delete_document_chunks
+ 
+from vector_store import delete_document_chunks 
+from retrieval import (
+    retrieve_relevant_chunks,
+    format_chunks_as_context
+)
 
 from pdf_extraction import (
     extract_text_from_pdf,
@@ -241,16 +245,16 @@ async def search_document(
             detail=f"Document is not ready for search yet (status: {document.status})"
         )
 
-    matches = search_similar_chunks(
-        query=q,
-        document_id=document_id,
-        top_k=5
-    )
-
+    chunks = retrieve_relevant_chunks(
+    question=q,
+    document_id=document_id
+)
     return {
-        "query": q,
-        "matches": matches
-    }
+    "query": q,
+    "matches_found": len(chunks),
+    "matches": chunks,
+    "formatted_context_preview": format_chunks_as_context(chunks)[:500]
+}
 
 
 @router.get(
