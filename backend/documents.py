@@ -8,6 +8,7 @@ from fastapi import (
     HTTPException,
     UploadFile,
     File,
+    BackgroundTasks,
 )
 
 from fastapi.responses import FileResponse
@@ -19,12 +20,15 @@ from database import get_db
 from models import Document, User
 from schemas import DocumentResponse
 
-from auth import get_current_user
+from auth import get_current_user 
+from vector_store import search_similar_chunks 
+from vector_store import delete_document_chunks
 
 from pdf_extraction import (
     extract_text_from_pdf,
     get_extraction_summary
 )
+from ingestion import process_document
 
 from chunking import (
     chunk_pages,
@@ -50,6 +54,7 @@ MAX_FILE_SIZE_MB = 20
     status_code=201
 )
 async def upload_document(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -61,7 +66,6 @@ async def upload_document(
             detail="Only PDF files are allowed."
         )
 
-
     contents = await file.read()
 
     size_mb = len(contents) / (1024 * 1024)
@@ -72,7 +76,6 @@ async def upload_document(
             detail="File too large"
         )
 
-
     unique_name = f"{uuid.uuid4()}.pdf"
 
     file_path = os.path.join(
@@ -80,21 +83,16 @@ async def upload_document(
         unique_name
     )
 
-
     os.makedirs(
         UPLOAD_DIR,
         exist_ok=True
     )
 
-
     async with aiofiles.open(
         file_path,
         "wb"
     ) as out_file:
-
         await out_file.write(contents)
-
-
 
     new_doc = Document(
         user_id=current_user.id,
@@ -103,20 +101,18 @@ async def upload_document(
         status="uploaded"
     )
 
-
     db.add(new_doc)
 
     await db.commit()
 
     await db.refresh(new_doc)
 
+    background_tasks.add_task(
+        process_document,
+        new_doc.id
+    )
 
     return new_doc
-
-
-
-
-
 @router.get(
     "",
     response_model=list[DocumentResponse]
@@ -187,14 +183,25 @@ async def get_document(
         current_user
     )
 
-
-
-
-
 @router.get(
-    "/{document_id}/extract-preview"
+    "/{document_id}",
+    response_model=DocumentResponse
 )
-async def extract_preview(
+async def get_document(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    return await _get_owned_document_or_404(
+        document_id,
+        db,
+        current_user
+    )
+
+
+@router.get("/{document_id}/status")
+async def get_document_status(
     document_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -206,47 +213,44 @@ async def extract_preview(
         current_user
     )
 
-
-    pages = extract_text_from_pdf(
-        document.file_path
-    )
-
-
-    summary = get_extraction_summary(
-        pages
-    )
-
-
-    chunks = chunk_pages(
-        pages,
-        chunk_size_tokens=500,
-        overlap_tokens=50
-    )
-
-
-    chunks_preview = []
-
-
-    for c in chunks:
-
-        chunks_preview.append(
-            {
-                "chunk_index": c.chunk_index,
-                "page_number": c.page_number,
-                "token_count": count_tokens(c.content),
-                "text_preview": c.content[:200]
-            }
-        )
-
-
     return {
-        "extraction_summary": summary,
-        "total_chunks": len(chunks),
-        "chunks_preview": chunks_preview
+        "document_id": document.id,
+        "status": document.status
     }
 
 
 
+
+@router.get("/{document_id}/search")
+async def search_document(
+    document_id: int,
+    q: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    document = await _get_owned_document_or_404(
+        document_id,
+        db,
+        current_user
+    )
+
+    if document.status != "ready":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document is not ready for search yet (status: {document.status})"
+        )
+
+    matches = search_similar_chunks(
+        query=q,
+        document_id=document_id,
+        top_k=5
+    )
+
+    return {
+        "query": q,
+        "matches": matches
+    }
 
 
 @router.get(
@@ -264,14 +268,11 @@ async def download_document(
         current_user
     )
 
-
     if not os.path.exists(document.file_path):
-
         raise HTTPException(
             status_code=404,
             detail="File missing"
         )
-
 
     return FileResponse(
         path=document.file_path,
@@ -302,6 +303,7 @@ async def delete_document(
 
     if os.path.exists(document.file_path):
         os.remove(document.file_path)
+    delete_document_chunks(document_id)
 
 
     await db.delete(document)
