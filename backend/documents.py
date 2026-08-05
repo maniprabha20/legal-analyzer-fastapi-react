@@ -27,6 +27,7 @@ from retrieval import (
     retrieve_relevant_chunks,
     format_chunks_as_context
 )
+from llm import ask_llm
 
 from pdf_extraction import (
     extract_text_from_pdf,
@@ -255,6 +256,43 @@ async def search_document(
     "matches": chunks,
     "formatted_context_preview": format_chunks_as_context(chunks)[:500]
 }
+@router.get("/{document_id}/ask")
+async def ask_document(
+    document_id: int,
+    q: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    document = await _get_owned_document_or_404(
+        document_id,
+        db,
+        current_user
+    )
+
+    if document.status != "ready":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document is not ready for questions yet (status: {document.status})",
+        )
+
+    chunks = retrieve_relevant_chunks(
+        question=q,
+        document_id=document_id
+    )
+
+    context = format_chunks_as_context(chunks)
+
+    answer = ask_llm(
+        question=q,
+        context=context
+    )
+
+    return {
+        "question": q,
+        "answer": answer,
+        "sources_used": len(chunks)
+    }
 
 
 @router.get(
