@@ -27,7 +27,7 @@ from retrieval import (
     retrieve_relevant_chunks,
     format_chunks_as_context
 )
-from llm import ask_llm
+from llm import ask_llm, AI_DISCLAIMER
 
 from pdf_extraction import (
     extract_text_from_pdf,
@@ -283,16 +283,16 @@ async def ask_document(
 
     context = format_chunks_as_context(chunks)
 
-    answer = ask_llm(
-        question=q,
-        context=context
-    )
-
+    result = ask_llm(
+    question=q,
+    context=context
+)
     return {
-        "question": q,
-        "answer": answer,
-        "sources_used": len(chunks)
-    }
+    "question": q,
+    "answer": result["answer"],
+    "disclaimer": result["disclaimer"],
+    "sources_used": len(chunks),
+}
 
 
 @router.get(

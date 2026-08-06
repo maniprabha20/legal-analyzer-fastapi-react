@@ -17,34 +17,51 @@ _llm = ChatGroq(
 )
 
 
-def ask_llm(question: str, context: str) -> str:
-    """
-    Sends a question + retrieved context to the LLM
-    and returns its answer.
-    """
+AI_DISCLAIMER = (
+    "This is an AI-generated analysis and is provided for informational purposes only. "
+    "It is not legal advice. Please consult a qualified legal professional before making "
+    "any decisions based on this content."
+)
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are a helpful assistant answering questions "
-                "about a legal document using only the context provided."
-            ),
-            (
-                "human",
-                "Context from the document:\n\n{context}\n\n"
-                "Question: {question}"
-            ),
-        ]
-    )
+
+SYSTEM_PROMPT = """
+You are a legal document assistant.
+
+You answer questions strictly using ONLY the context provided from the uploaded document.
+
+Rules:
+1. Only use information found in the provided context.
+2. Do not use outside knowledge.
+3. If information is not available, reply exactly:
+"I could not find information about this in the document."
+
+4. Mention page numbers when answering.
+5. Do not provide legal advice.
+6. Describe what the document says only.
+7. Be concise.
+"""
+
+
+def ask_llm(question: str, context: str):
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", SYSTEM_PROMPT),
+        (
+            "human",
+            "Context from document:\n\n{context}\n\nQuestion: {question}"
+        )
+    ])
 
     chain = prompt | _llm
 
     response = chain.invoke(
         {
             "context": context,
-            "question": question,
+            "question": question
         }
     )
 
-    return response.content
+    return {
+        "answer": response.content,
+        "disclaimer": AI_DISCLAIMER
+    }
