@@ -19,7 +19,8 @@ from sqlalchemy import select
 from database import get_db
 from models import Document, User, AnalysisReport, ChatMessage
 from schemas import DocumentResponse, AnalysisResponse, ChatMessageResponse
-from auth import get_current_user
+from auth import get_current_user 
+from fastapi import Query
 
 from vector_store import (
     delete_document_chunks,
@@ -129,6 +130,8 @@ async def upload_document(
     response_model=list[DocumentResponse]
 )
 async def list_documents(
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -138,47 +141,11 @@ async def list_documents(
         .where(
             Document.user_id == current_user.id
         )
+        .offset(offset)
+        .limit(limit)
     )
-
 
     return result.scalars().all()
-
-
-async def _get_owned_document_or_404(
-    document_id: int,
-    db: AsyncSession,
-    current_user: User
-):
-
-    result = await db.execute(
-        select(Document)
-        .where(
-            Document.id == document_id,
-            Document.user_id == current_user.id
-        )
-    )
-
-
-    document = result.scalar_one_or_none()
-
-
-    if document is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Document not found"
-        )
-
-
-    return document 
-def _report_to_response(report: AnalysisReport) -> dict:
-    return {
-        "id": report.id,
-        "document_id": report.document_id,
-        "result": json.loads(report.result_json),
-        "created_at": report.created_at,
-    }
-
-
 @router.get(
     "/{document_id}",
     response_model=DocumentResponse
