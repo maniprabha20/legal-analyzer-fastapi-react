@@ -1,7 +1,7 @@
 from vector_store import search_similar_chunks
 
 
-MIN_SIMILARITY_THRESHOLD = 0.3
+MIN_SIMILARITY_THRESHOLD = 0.2
 
 
 def retrieve_relevant_chunks(

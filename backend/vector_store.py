@@ -50,7 +50,7 @@ def add_chunks_to_store(document_id: int, chunks: list) -> int:
         for c in chunks
     ]
 
-
+    print("ADDING TO CHROMA:", document_id, len(chunks)) 
     _collection.add(
         ids=ids,
         embeddings=vectors,
@@ -67,7 +67,7 @@ def search_similar_chunks(
     document_id: int,
     top_k: int = 5
 ) -> list[dict]:
-
+    print("SEARCH DOCUMENT:", document_id)
     # Convert question into vector
     query_vector = embed_text(query)
 
@@ -112,4 +112,40 @@ def delete_document_chunks(document_id: int):
         where={
             "document_id": document_id
         }
+    ) 
+def get_all_chunks_for_document(document_id: int) -> list[dict]:
+    """
+    Retrieves every stored chunk for a document, in original page/chunk
+    order. Used for full-document analysis (Day 18), as opposed to
+    search_similar_chunks() above, which only returns the top-k chunks
+    most relevant to one specific question.
+    """
+    results = _collection.get(
+        where={"document_id": document_id},
+        include=["documents", "metadatas"],
     )
+
+    combined = list(zip(results["documents"], results["metadatas"]))
+    combined.sort(key=lambda pair: pair[1]["chunk_index"])
+
+    return [
+        {
+            "content": text,
+            "page_number": meta["page_number"],
+            "chunk_index": meta["chunk_index"],
+        }
+        for text, meta in combined
+    ]
+
+
+def get_document_page_count(document_id: int) -> int:
+    """
+    Returns the highest page_number seen among this document's stored
+    chunks - used as an approximation of the document's total page count,
+    to validate that AI-reported citations (Day 19) stay within real
+    bounds.
+    """
+    chunks = get_all_chunks_for_document(document_id)
+    if not chunks:
+        return 1
+    return max(c["page_number"] for c in chunks)   

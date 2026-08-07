@@ -1,7 +1,7 @@
 import os
 import aiofiles
 import uuid
-
+import json
 from fastapi import (
     APIRouter,
     Depends,
@@ -17,17 +17,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from database import get_db
-from models import Document, User
-from schemas import DocumentResponse
+from models import Document, User, AnalysisReport, ChatMessage
+from schemas import DocumentResponse, AnalysisResponse, ChatMessageResponse
+from auth import get_current_user
 
-from auth import get_current_user 
- 
-from vector_store import delete_document_chunks 
+from vector_store import (
+    delete_document_chunks,
+    get_all_chunks_for_document,
+    get_document_page_count,
+)
 from retrieval import (
     retrieve_relevant_chunks,
     format_chunks_as_context
 )
-from llm import ask_llm, AI_DISCLAIMER
+from llm import ask_llm, AI_DISCLAIMER, analyze_document_text
+from citations import validate_and_clamp_citations
 
 from pdf_extraction import (
     extract_text_from_pdf,
@@ -118,6 +122,8 @@ async def upload_document(
     )
 
     return new_doc
+
+
 @router.get(
     "",
     response_model=list[DocumentResponse]
@@ -136,9 +142,6 @@ async def list_documents(
 
 
     return result.scalars().all()
-
-
-
 
 
 async def _get_owned_document_or_404(
@@ -166,10 +169,14 @@ async def _get_owned_document_or_404(
         )
 
 
-    return document
-
-
-
+    return document 
+def _report_to_response(report: AnalysisReport) -> dict:
+    return {
+        "id": report.id,
+        "document_id": report.document_id,
+        "result": json.loads(report.result_json),
+        "created_at": report.created_at,
+    }
 
 
 @router.get(
@@ -188,21 +195,10 @@ async def get_document(
         current_user
     )
 
-@router.get(
-    "/{document_id}",
-    response_model=DocumentResponse
-)
-async def get_document(
-    document_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
 
-    return await _get_owned_document_or_404(
-        document_id,
-        db,
-        current_user
-    )
+# NOTE: the duplicate second copy of get_document() that was here has been
+# removed - it was dead code silently shadowed by the first definition above,
+# not causing errors, but redundant and worth cleaning up.
 
 
 @router.get("/{document_id}/status")
@@ -222,8 +218,6 @@ async def get_document_status(
         "document_id": document.id,
         "status": document.status
     }
-
-
 
 
 @router.get("/{document_id}/search")
@@ -256,6 +250,8 @@ async def search_document(
     "matches": chunks,
     "formatted_context_preview": format_chunks_as_context(chunks)[:500]
 }
+
+
 @router.get("/{document_id}/ask")
 async def ask_document(
     document_id: int,
@@ -276,23 +272,157 @@ async def ask_document(
             detail=f"Document is not ready for questions yet (status: {document.status})",
         )
 
+    # Fetch the last 3 exchanges (6 messages) for conversational context
+    history_result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.document_id == document_id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(6)
+    )
+    recent_messages = list(reversed(history_result.scalars().all()))
+    chat_history = [{"role": m.role, "content": m.content} for m in recent_messages]
+
     chunks = retrieve_relevant_chunks(
         question=q,
         document_id=document_id
     )
 
+    if not chunks:
+        answer_text = "I could not find information about this in the document."
+
+        db.add(ChatMessage(document_id=document_id, role="user", content=q))
+        db.add(ChatMessage(document_id=document_id, role="assistant", content=answer_text))
+        await db.commit()
+
+        return {
+            "question": q,
+            "answer": answer_text,
+            "disclaimer": AI_DISCLAIMER,
+            "sources_used": 0,
+            "pages_referenced": [],
+        }
+
     context = format_chunks_as_context(chunks)
 
     result = ask_llm(
-    question=q,
-    context=context
-)
+        question=q,
+        context=context,
+        chat_history=chat_history,
+    )
+
+    pages_referenced = sorted(set(c["page_number"] for c in chunks))
+
+    db.add(ChatMessage(document_id=document_id, role="user", content=q))
+    db.add(ChatMessage(document_id=document_id, role="assistant", content=result["answer"]))
+    await db.commit()
+
     return {
-    "question": q,
-    "answer": result["answer"],
-    "disclaimer": result["disclaimer"],
-    "sources_used": len(chunks),
-}
+        "question": q,
+        "answer": result["answer"],
+        "disclaimer": result["disclaimer"],
+        "sources_used": len(chunks),
+        "pages_referenced": pages_referenced,
+    }
+
+@router.get("/{document_id}/chat", response_model=list[ChatMessageResponse])
+async def get_chat_history(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    await _get_owned_document_or_404(
+        document_id,
+        db,
+        current_user
+    )
+
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.document_id == document_id)
+        .order_by(ChatMessage.created_at.asc())
+    )
+
+    return result.scalars().all()
+
+
+@router.post(
+    "/{document_id}/analyze",
+    response_model=AnalysisResponse,
+    status_code=201
+)
+async def analyze_document(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    document = await _get_owned_document_or_404(
+        document_id,
+        db,
+        current_user
+    )
+
+    if document.status != "ready":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document is not ready for analysis yet (status: {document.status})",
+        )
+
+    chunks = get_all_chunks_for_document(document_id)
+
+    if not chunks:
+        raise HTTPException(
+            status_code=400,
+            detail="No content available to analyze for this document."
+        )
+
+    context = format_chunks_as_context(chunks)
+
+    try:
+        analysis = analyze_document_text(context)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
+
+    max_page = get_document_page_count(document_id)
+    analysis = validate_and_clamp_citations(analysis, max_page)
+
+    report = AnalysisReport(
+        document_id=document_id,
+        result_json=analysis.model_dump_json(),
+    )
+    db.add(report)
+    await db.commit()
+    await db.refresh(report)
+
+    return {
+        "id": report.id,
+        "document_id": report.document_id,
+        "result": analysis,
+        "created_at": report.created_at,
+    } 
+@router.get("/{document_id}/reports", response_model=list[AnalysisResponse])
+async def list_analysis_reports(
+    document_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+
+    await _get_owned_document_or_404(
+        document_id,
+        db,
+        current_user
+    )
+
+    result = await db.execute(
+        select(AnalysisReport)
+        .where(AnalysisReport.document_id == document_id)
+        .order_by(AnalysisReport.created_at.desc())
+    )
+
+    reports = result.scalars().all()
+
+    return [_report_to_response(r) for r in reports]
 
 
 @router.get(
@@ -321,9 +451,6 @@ async def download_document(
         filename=document.filename,
         media_type="application/pdf"
     )
-
-
-
 
 
 @router.delete(
