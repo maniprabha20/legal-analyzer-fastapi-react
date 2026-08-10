@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Container, Navbar, Button, Table, Badge, Spinner, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { fetchDocuments, deleteDocument } from '../api/documents';
+import UploadModal from '../components/UploadModal';
 
 const STATUS_VARIANTS = {
   uploaded: 'secondary',
@@ -15,6 +16,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const loadDocuments = async () => {
     try {
@@ -74,7 +76,12 @@ function Dashboard() {
       <Container className="mt-4">
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h3>Your Documents</h3>
-          <Button variant="primary">+ Upload Document</Button>
+          <Button
+  variant="primary"
+  onClick={() => setShowUploadModal(true)}
+>
+  + Upload Document
+</Button>
         </div>
 
         {error && <Alert variant="danger">{error}</Alert>}
@@ -121,7 +128,12 @@ function Dashboard() {
             </tbody>
           </Table>
         )}
-      </Container>
+      </Container> 
+          <UploadModal
+      show={showUploadModal}
+      onClose={() => setShowUploadModal(false)}
+      onUploadSuccess={loadDocuments}
+    />
     </>
   );
 }

@@ -16,3 +16,16 @@ export async function fetchDocumentStatus(documentId) {
   const response = await apiClient.get(`/documents/${documentId}/status`);
   return response.data;
 }
+export async function uploadDocument(file, onUploadProgress) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiClient.post('/documents/upload', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    onUploadProgress,
+  });
+
+  return response.data;
+}
