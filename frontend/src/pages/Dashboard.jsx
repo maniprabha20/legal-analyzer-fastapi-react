@@ -107,7 +107,13 @@ function Dashboard() {
             <tbody>
               {documents.map((doc) => (
                 <tr key={doc.id}>
-                  <td>{doc.filename}</td>
+                  <td
+  onClick={() => navigate(`/documents/${doc.id}`)}
+  style={{ cursor: 'pointer' }}
+  className="text-primary"
+>
+  {doc.filename}
+</td>
                   <td>
                     <Badge bg={STATUS_VARIANTS[doc.status] || 'secondary'}>
                       {doc.status}

@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import DocumentDetail from './pages/DocumentDetail';
 
 function App() {
   return (
@@ -18,6 +19,14 @@ function App() {
           path="/register"
           element={<Register />}
         />
+        <Route
+  path="/documents/:documentId"
+  element={
+    <ProtectedRoute>
+      <DocumentDetail />
+    </ProtectedRoute>
+  }
+/>
 
         <Route
           path="/dashboard"

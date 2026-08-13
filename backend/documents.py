@@ -50,6 +50,34 @@ router = APIRouter(
     prefix="/documents",
     tags=["documents"]
 )
+async def _get_owned_document_or_404(
+    document_id: int,
+    db: AsyncSession,
+    current_user: User,
+):
+    result = await db.execute(
+        select(Document).where(
+            Document.id == document_id,
+            Document.user_id == current_user.id
+        )
+    )
+
+    document = result.scalar_one_or_none()
+
+    if document is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    return document
+def _report_to_response(report: AnalysisReport) -> AnalysisResponse:
+    return AnalysisResponse(
+        id=report.id,
+        document_id=report.document_id,
+        result=report.result,
+        created_at=report.created_at,
+    )
 
 
 UPLOAD_DIR = "uploads"

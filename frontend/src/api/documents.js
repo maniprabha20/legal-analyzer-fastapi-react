@@ -16,6 +16,14 @@ export async function fetchDocumentStatus(documentId) {
   const response = await apiClient.get(`/documents/${documentId}/status`);
   return response.data;
 }
+export async function fetchDocument(documentId) {
+  const response = await apiClient.get(`/documents/${documentId}`);
+  return response.data;
+}
+
+export function getDownloadUrl(documentId) {
+  return `${apiClient.defaults.baseURL}/documents/${documentId}/download`;
+}
 export async function uploadDocument(file, onUploadProgress) {
   const formData = new FormData();
   formData.append('file', file);
