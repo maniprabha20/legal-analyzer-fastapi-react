@@ -254,11 +254,10 @@ async def ask_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     document = await _get_owned_document_or_404(
         document_id,
         db,
-        current_user
+        current_user,
     )
 
     if document.status != "ready":
@@ -267,26 +266,57 @@ async def ask_document(
             detail=f"Document is not ready for questions yet (status: {document.status})",
         )
 
-    # Fetch the last 3 exchanges (6 messages) for conversational context
     history_result = await db.execute(
         select(ChatMessage)
         .where(ChatMessage.document_id == document_id)
         .order_by(ChatMessage.created_at.desc())
         .limit(6)
     )
+
     recent_messages = list(reversed(history_result.scalars().all()))
-    chat_history = [{"role": m.role, "content": m.content} for m in recent_messages]
+
+    chat_history = [
+        {"role": m.role, "content": m.content}
+        for m in recent_messages
+    ]
+
+    retrieval_question = q
+
+    if chat_history:
+        previous_context = "\n".join(
+            f"{m['role']}: {m['content']}"
+            for m in chat_history[-4:]
+        )
+
+        retrieval_question = (
+            f"Conversation context:\n{previous_context}\n\n"
+            f"Current question: {q}"
+        )
 
     chunks = retrieve_relevant_chunks(
-        question=q,
-        document_id=document_id
+        question=retrieval_question,
+        document_id=document_id,
     )
 
     if not chunks:
         answer_text = "I could not find information about this in the document."
 
-        db.add(ChatMessage(document_id=document_id, role="user", content=q))
-        db.add(ChatMessage(document_id=document_id, role="assistant", content=answer_text))
+        db.add(
+            ChatMessage(
+                document_id=document_id,
+                role="user",
+                content=q,
+            )
+        )
+
+        db.add(
+            ChatMessage(
+                document_id=document_id,
+                role="assistant",
+                content=answer_text,
+            )
+        )
+
         await db.commit()
 
         return {
@@ -297,6 +327,43 @@ async def ask_document(
             "pages_referenced": [],
         }
 
+    context = format_chunks_as_context(chunks)
+
+    result = ask_llm(
+        question=q,
+        context=context,
+        chat_history=chat_history,
+    )
+
+    pages_referenced = sorted(
+        set(c["page_number"] for c in chunks)
+    )
+
+    db.add(
+        ChatMessage(
+            document_id=document_id,
+            role="user",
+            content=q,
+        )
+    )
+
+    db.add(
+        ChatMessage(
+            document_id=document_id,
+            role="assistant",
+            content=result["answer"],
+        )
+    )
+
+    await db.commit()
+
+    return {
+        "question": q,
+        "answer": result["answer"],
+        "disclaimer": result["disclaimer"],
+        "sources_used": len(chunks),
+        "pages_referenced": pages_referenced,
+    }
     context = format_chunks_as_context(chunks)
 
     result = ask_llm(

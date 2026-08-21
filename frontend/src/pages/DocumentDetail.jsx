@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+
 import {
   Container,
   Navbar,
@@ -9,7 +10,10 @@ import {
   Badge,
   Row,
   Col,
+  Tabs,
+  Tab,
 } from 'react-bootstrap';
+import ChatPanel from '../components/ChatPanel';
 import { Document, Page } from 'react-pdf';
 import { fetchDocument } from '../api/documents';
 import apiClient from '../api/client';
@@ -174,11 +178,25 @@ function DocumentDetail() {
               </Col>
 
               <Col md={5}>
-  <AnalysisPanel
-    documentId={documentId}
-    documentStatus={document?.status}
-    onJumpToPage={goToPage}
-  />
+  <Tabs defaultActiveKey="analysis" className="mb-3">
+
+    <Tab eventKey="analysis" title="Analysis">
+      <AnalysisPanel
+        documentId={documentId}
+        documentStatus={document?.status}
+        onJumpToPage={goToPage}
+      />
+    </Tab>
+
+    <Tab eventKey="chat" title="Chat">
+      <ChatPanel
+        documentId={documentId}
+        documentStatus={document?.status}
+        onJumpToPage={goToPage}
+      />
+    </Tab>
+
+  </Tabs>
 </Col>
             </Row>
           </>

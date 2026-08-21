@@ -55,3 +55,14 @@ export async function fetchReports(documentId) {
 
   return response.data;
 }
+export async function askQuestion(documentId, question) {
+  const response = await apiClient.get(`/documents/${documentId}/ask`, {
+    params: { q: question },
+  });
+  return response.data;
+}
+
+export async function fetchChatHistory(documentId) {
+  const response = await apiClient.get(`/documents/${documentId}/chat`);
+  return response.data;
+}
