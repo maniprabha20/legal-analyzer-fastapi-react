@@ -7,6 +7,7 @@ import {
   ProgressBar,
 } from 'react-bootstrap';
 import { uploadDocument } from '../api/documents';
+import { useToast } from './ToastProvider';
 
 const MAX_FILE_SIZE_MB = 20;
 
@@ -15,6 +16,7 @@ function UploadModal({ show, onClose, onUploadSuccess }) {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const showToast = useToast();
 
   const resetState = () => {
     setFile(null);
@@ -68,6 +70,7 @@ function UploadModal({ show, onClose, onUploadSuccess }) {
 
       resetState();
       onUploadSuccess();
+      showToast('Document uploaded successfully.', 'success');
       onClose();
     } catch (err) {
       const detail =
