@@ -13,6 +13,7 @@ import {
 import { Document, Page } from 'react-pdf';
 import { fetchDocument } from '../api/documents';
 import apiClient from '../api/client';
+import AnalysisPanel from '../components/AnalysisPanel';
 
 const STATUS_VARIANTS = {
   uploaded: 'secondary',
@@ -70,10 +71,12 @@ function DocumentDetail() {
   };
 
   const goToPage = (page) => {
-    if (page < 1 || page > numPages) return;
-    setPageNumber(page);
-  };
+  const target = Number(page);
 
+  if (!numPages || target < 1 || target > numPages) return;
+
+  setPageNumber(target);
+};
   return (
     <>
       <Navbar bg="dark" variant="dark" className="px-3">
@@ -130,6 +133,7 @@ function DocumentDetail() {
                     <Document
                       file={pdfBlobUrl}
                       onLoadSuccess={({ numPages }) =>
+                        
                         setNumPages(numPages)
                       }
                       loading={
@@ -137,6 +141,7 @@ function DocumentDetail() {
                       }
                     >
                       <Page pageNumber={pageNumber} width={480} />
+                      <p>DEBUG: pageNumber = {pageNumber}, numPages = {numPages}</p>
                     </Document>
 
                     {numPages && (
@@ -169,12 +174,12 @@ function DocumentDetail() {
               </Col>
 
               <Col md={5}>
-                <div className="border rounded p-3">
-                  <p className="text-muted mb-0">
-                    AI analysis and chat will appear here (Day 34 and Day 35).
-                  </p>
-                </div>
-              </Col>
+  <AnalysisPanel
+    documentId={documentId}
+    documentStatus={document?.status}
+    onJumpToPage={goToPage}
+  />
+</Col>
             </Row>
           </>
         )}

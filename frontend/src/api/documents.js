@@ -16,6 +16,7 @@ export async function fetchDocumentStatus(documentId) {
   const response = await apiClient.get(`/documents/${documentId}/status`);
   return response.data;
 }
+
 export async function fetchDocument(documentId) {
   const response = await apiClient.get(`/documents/${documentId}`);
   return response.data;
@@ -24,6 +25,7 @@ export async function fetchDocument(documentId) {
 export function getDownloadUrl(documentId) {
   return `${apiClient.defaults.baseURL}/documents/${documentId}/download`;
 }
+
 export async function uploadDocument(file, onUploadProgress) {
   const formData = new FormData();
   formData.append('file', file);
@@ -34,6 +36,22 @@ export async function uploadDocument(file, onUploadProgress) {
     },
     onUploadProgress,
   });
+
+  return response.data;
+}
+
+export async function analyzeDocument(documentId) {
+  const response = await apiClient.post(
+    `/documents/${documentId}/analyze`
+  );
+
+  return response.data;
+}
+
+export async function fetchReports(documentId) {
+  const response = await apiClient.get(
+    `/documents/${documentId}/reports`
+  );
 
   return response.data;
 }

@@ -10,8 +10,7 @@ from schemas import DocumentAnalysis
 load_dotenv()
 
 
-LLM_MODEL = "llama-3.3-70b-versatile"
-
+LLM_MODEL = "openai/gpt-oss-120b"
 
 _llm = ChatGroq(
     api_key=os.getenv("GROQ_API_KEY"),
