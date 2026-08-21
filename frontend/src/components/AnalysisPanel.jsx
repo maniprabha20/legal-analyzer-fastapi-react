@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button, Spinner, Alert, Badge, Accordion, ListGroup } from 'react-bootstrap';
 import { analyzeDocument, fetchReports } from '../api/documents';
+import apiClient from '../api/client';
 
 const RISK_VARIANTS = {
   low: 'success',
@@ -24,6 +25,7 @@ function PageBadge({ page, onJumpToPage }) {
 
 function AnalysisPanel({ documentId, documentStatus, onJumpToPage }) {
   const [analysis, setAnalysis] = useState(null);
+  const [currentReportId, setCurrentReportId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState('');
@@ -33,8 +35,9 @@ function AnalysisPanel({ documentId, documentStatus, onJumpToPage }) {
       try {
         const reports = await fetchReports(documentId);
         if (reports.length > 0) {
-          setAnalysis(reports[0].result); // newest first, per backend ordering
-        }
+  setCurrentReportId(reports[0].id);
+  setAnalysis(reports[0].result);
+}
       } catch (err) {
         // No existing reports is not an error state - just means none run yet
       } finally {
@@ -51,7 +54,8 @@ function AnalysisPanel({ documentId, documentStatus, onJumpToPage }) {
 
     try {
       const report = await analyzeDocument(documentId);
-      setAnalysis(report.result);
+setCurrentReportId(report.id);
+setAnalysis(report.result);
     } catch (err) {
       const detail = err.response?.data?.detail || 'Analysis failed. Please try again.';
       setError(detail);
@@ -87,6 +91,25 @@ function AnalysisPanel({ documentId, documentStatus, onJumpToPage }) {
       </div>
     );
   }
+  const handleDownload = async () => {
+  if (!currentReportId) return;
+
+  const response = await apiClient.get(
+    `/reports/${currentReportId}/download`,
+    {
+      responseType: 'blob',
+    }
+  );
+
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = 'analysis-report.pdf';
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
 
   return (
     <div>
@@ -95,11 +118,29 @@ function AnalysisPanel({ documentId, documentStatus, onJumpToPage }) {
       </Alert>
 
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 className="mb-0">Analysis</h6>
-        <Button size="sm" variant="outline-primary" onClick={handleAnalyze} disabled={analyzing}>
-          {analyzing ? 'Re-analyzing...' : 'Re-analyze'}
-        </Button>
-      </div>
+  <h6 className="mb-0">Analysis</h6>
+
+  <div>
+    <Button
+      size="sm"
+      variant="outline-secondary"
+      onClick={handleDownload}
+      disabled={!currentReportId}
+      className="me-2"
+    >
+      Download PDF
+    </Button>
+
+    <Button
+      size="sm"
+      variant="outline-primary"
+      onClick={handleAnalyze}
+      disabled={analyzing}
+    >
+      {analyzing ? 'Re-analyzing...' : 'Re-analyze'}
+    </Button>
+  </div>
+</div>
 
       {error && <Alert variant="danger">{error}</Alert>}
 

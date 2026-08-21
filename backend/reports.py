@@ -9,6 +9,11 @@ from models import AnalysisReport, Document, User
 from schemas import AnalysisResponse
 from auth import get_current_user
 
+
+from fastapi.responses import StreamingResponse
+from schemas import DocumentAnalysis
+from report_pdf import generate_report_pdf
+
 router = APIRouter(prefix="/reports", tags=["reports"])
 
 
@@ -65,3 +70,46 @@ async def get_report(
         "result": json.loads(report.result_json),
         "created_at": report.created_at,
     }
+@router.get("/{report_id}/download")
+async def download_report_pdf(
+    report_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    result = await db.execute(
+        select(AnalysisReport, Document)
+        .join(Document, AnalysisReport.document_id == Document.id)
+        .where(
+            AnalysisReport.id == report_id,
+            Document.user_id == current_user.id,
+        )
+    )
+
+    row = result.first()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Report not found"
+        )
+
+    report, document = row
+
+    analysis = DocumentAnalysis(
+        **json.loads(report.result_json)
+    )
+
+    pdf_buffer = generate_report_pdf(
+        analysis,
+        document.filename,
+        report.created_at
+    )
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition":
+                f"attachment; filename=analysis-report-{report_id}.pdf"
+        },
+    )
