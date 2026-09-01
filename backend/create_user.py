@@ -1,5 +1,6 @@
 from models import User
 from database import AsyncSessionLocal
+from security import hash_password
 import asyncio
 
 
@@ -9,7 +10,7 @@ async def create_user():
 
         user = User(
             email="test@gmail.com",
-            hashed_password="test123"
+            hashed_password=hash_password("test123")
         )
 
         db.add(user)

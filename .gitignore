@@ -7,3 +7,5 @@ dist/
 .vscode/
 uploads/
 chroma_data/
+token.txt
+.env

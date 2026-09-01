@@ -1,11 +1,15 @@
+import fitz
+
 from sqlalchemy import select
 
 from database import AsyncSessionLocal
 from models import Document, Chunk
 
-from pdf_extraction import extract_text_from_pdf, get_extraction_summary
+from pdf_extraction import ExtractedPage, get_extraction_summary
 from chunking import chunk_pages
 from vector_store import add_chunks_to_store
+
+from storage import download_file_from_storage
 
 
 async def process_document(document_id: int) -> None:
@@ -29,12 +33,32 @@ async def process_document(document_id: int) -> None:
             document.status = "processing"
             await db.commit()
 
+            # Download PDF from Supabase Storage
+            file_bytes = download_file_from_storage(
+                document.file_path
+            )
 
-            # Extract text from PDF
-            pages = extract_text_from_pdf(document.file_path)
+            # Open PDF directly from downloaded bytes
+            with fitz.open(
+                stream=file_bytes,
+                filetype="pdf"
+            ) as pdf:
 
+                pages = []
+
+                for page_number, page in enumerate(pdf, start=1):
+
+                    text = page.get_text()
+
+                    pages.append(
+                        ExtractedPage(
+                            page_number=page_number,
+                            text=text
+                        )
+                    )
+
+            # Generate extraction summary
             summary = get_extraction_summary(pages)
-
 
             # Extraction failed check
             if summary["total_characters_extracted"] < 20:
@@ -42,16 +66,13 @@ async def process_document(document_id: int) -> None:
                 await db.commit()
                 return
 
-
             # Create text chunks
             chunks = chunk_pages(pages)
-
 
             if not chunks:
                 document.status = "failed"
                 await db.commit()
                 return
-
 
             # Save chunks into PostgreSQL
             for chunk in chunks:
@@ -65,9 +86,7 @@ async def process_document(document_id: int) -> None:
 
                 db.add(db_chunk)
 
-
             await db.commit()
-
 
             # Save embeddings into ChromaDB
             add_chunks_to_store(
@@ -75,11 +94,9 @@ async def process_document(document_id: int) -> None:
                 chunks
             )
 
-
-            # Mark document ready
+            # Mark document as ready
             document.status = "ready"
             await db.commit()
-
 
         except Exception as e:
 

@@ -11,7 +11,7 @@ from fastapi import (
     BackgroundTasks,
 )
 
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -21,6 +21,8 @@ from models import Document, User, AnalysisReport, ChatMessage
 from schemas import DocumentResponse, AnalysisResponse, ChatMessageResponse
 from auth import get_current_user 
 from fastapi import Query
+from rate_limit import rate_limiter
+from storage import upload_file_to_storage
 
 from vector_store import (
     delete_document_chunks,
@@ -44,6 +46,7 @@ from chunking import (
     chunk_pages,
     count_tokens
 )
+from storage import upload_file_to_storage
 
 
 router = APIRouter(
@@ -75,7 +78,7 @@ def _report_to_response(report: AnalysisReport) -> AnalysisResponse:
     return AnalysisResponse(
         id=report.id,
         document_id=report.document_id,
-        result=report.result,
+        result=json.loads(report.result_json),
         created_at=report.created_at,
     )
 
@@ -116,21 +119,12 @@ async def upload_document(
 
     unique_name = f"{uuid.uuid4()}.pdf"
 
-    file_path = os.path.join(
-        UPLOAD_DIR,
-        unique_name
+    upload_file_to_storage(
+        unique_name,
+        contents
     )
 
-    os.makedirs(
-        UPLOAD_DIR,
-        exist_ok=True
-    )
-
-    async with aiofiles.open(
-        file_path,
-        "wb"
-    ) as out_file:
-        await out_file.write(contents)
+    file_path = unique_name
 
     new_doc = Document(
         user_id=current_user.id,
@@ -151,8 +145,6 @@ async def upload_document(
     )
 
     return new_doc
-
-
 @router.get(
     "",
     response_model=list[DocumentResponse]
@@ -252,7 +244,7 @@ async def ask_document(
     document_id: int,
     q: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(rate_limiter("ask")),
 ):
     document = await _get_owned_document_or_404(
         document_id,
@@ -461,13 +453,14 @@ async def analyze_document(
         "id": report.id,
         "document_id": report.document_id,
         "result": analysis,
+        
         "created_at": report.created_at,
     } 
 @router.get("/{document_id}/reports", response_model=list[AnalysisResponse])
 async def list_analysis_reports(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(rate_limiter("analyze")),
 ):
 
     await _get_owned_document_or_404(
@@ -495,24 +488,36 @@ async def download_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     document = await _get_owned_document_or_404(
         document_id,
         db,
         current_user
     )
 
-    if not os.path.exists(document.file_path):
-        raise HTTPException(
-            status_code=404,
-            detail="File missing"
+    try:
+        from storage import download_file_from_storage
+
+        file_bytes = download_file_from_storage(
+            document.file_path
         )
 
-    return FileResponse(
-        path=document.file_path,
-        filename=document.filename,
-        media_type="application/pdf"
-    )
+        return Response(
+            content=file_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": (
+                    f'attachment; filename="{document.filename}"'
+                )
+            },
+        )
+
+    except Exception as e:
+        print(f"[download error] {e}")
+
+        raise HTTPException(
+            status_code=404,
+            detail=f"File missing from storage: {e}"
+        )
 
 
 @router.delete(
@@ -524,22 +529,26 @@ async def delete_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-
     document = await _get_owned_document_or_404(
         document_id,
         db,
         current_user
     )
 
+    try:
+        from storage import delete_file_from_storage
 
-    if os.path.exists(document.file_path):
-        os.remove(document.file_path)
+        delete_file_from_storage(
+            document.file_path
+        )
+
+    except Exception as e:
+        print(f"[delete storage error] {e}")
+
     delete_document_chunks(document_id)
-
 
     await db.delete(document)
 
     await db.commit()
-
 
     return None

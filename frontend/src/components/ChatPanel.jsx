@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Form, Button, Spinner, Alert, Badge } from 'react-bootstrap';
+import ReactMarkdown from 'react-markdown';
 import { askQuestion, fetchChatHistory } from '../api/documents';
 
 function ChatPanel({ documentId, documentStatus, onJumpToPage }) {
@@ -93,7 +94,7 @@ function ChatPanel({ documentId, documentStatus, onJumpToPage }) {
                 }`}
                 style={{ maxWidth: '85%' }}
               >
-                <div>{msg.content}</div>
+                <ReactMarkdown>{msg.content}</ReactMarkdown>
                 {msg.pagesReferenced.length > 0 && (
                   <div className="mt-1">
                     {msg.pagesReferenced.map((page) => (
