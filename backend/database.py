@@ -3,6 +3,7 @@ import os
 from sqlalchemy.ext.asyncio import (
     create_async_engine,
     async_sessionmaker,
+    AsyncSession,
 )
 from sqlalchemy.orm import DeclarativeBase
 
@@ -28,3 +29,9 @@ AsyncSessionLocal = async_sessionmaker(
 class Base(DeclarativeBase):
     """Every ORM model (table) will inherit from this."""
     pass
+
+
+# Provides a database session for each request
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
