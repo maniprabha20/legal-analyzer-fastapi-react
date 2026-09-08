@@ -15,7 +15,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
     "http://localhost:5173",
-    "https://legal-analyzer-fastapi-react.onrender.com"
+    "https://legal-analyzer-fastapi-react.onrender.com",
+    "https://legal-analyzer-fastapi-react-1.onrender.com",
+
 ],
     allow_credentials=True,
     allow_methods=["*"],
