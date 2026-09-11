@@ -1,43 +1,47 @@
 import { useState, useEffect } from 'react';
-import {
-  Button,
-  Spinner,
-  Alert,
-  Badge,
-  Accordion,
-  ListGroup,
-} from 'react-bootstrap';
-
+import { Button, Spinner, Alert, Accordion, ListGroup } from 'react-bootstrap';
 import { analyzeDocument, fetchReports } from '../api/documents';
 import apiClient from '../api/client';
 
-const RISK_VARIANTS = {
-  low: 'success',
-  medium: 'warning',
-  high: 'danger',
+const RISK_BADGE_CLASS = {
+  low: 'badge-status-ready',
+  medium: 'badge-status-processing',
+  high: 'badge-status-failed',
 };
 
-function PageBadge({ page, onJumpToPage }) {
-  if (!page) return null;
-
+function PageChip({ page, onJumpToPage }) {
   return (
-    <Badge
-      bg="light"
-      text="dark"
-      className="border ms-2"
-      style={{ cursor: 'pointer' }}
-      onClick={() => onJumpToPage(Number(page))}
-    >
+    <span className="page-chip" onClick={() => onJumpToPage(page)}>
       Page {page}
-    </Badge>
+    </span>
   );
 }
 
-function AnalysisPanel({
-  documentId,
-  documentStatus,
-  onJumpToPage,
-}) {
+function RiskOverview({ risks }) {
+  const counts = { high: 0, medium: 0, low: 0 };
+  risks.forEach((r) => {
+    if (counts[r.risk_level] !== undefined) counts[r.risk_level] += 1;
+  });
+
+  return (
+    <div className="risk-overview">
+      <div className="risk-count-card high">
+        <div className="count">{counts.high}</div>
+        <div className="label">High</div>
+      </div>
+      <div className="risk-count-card medium">
+        <div className="count">{counts.medium}</div>
+        <div className="label">Medium</div>
+      </div>
+      <div className="risk-count-card low">
+        <div className="count">{counts.low}</div>
+        <div className="label">Low</div>
+      </div>
+    </div>
+  );
+}
+
+function AnalysisPanel({ documentId, documentStatus, onJumpToPage }) {
   const [analysis, setAnalysis] = useState(null);
   const [currentReportId, setCurrentReportId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -48,13 +52,12 @@ function AnalysisPanel({
     async function loadExistingReport() {
       try {
         const reports = await fetchReports(documentId);
-
-        if (reports && reports.length > 0) {
+        if (reports.length > 0) {
+          setAnalysis(reports[0].result); // newest first, per backend ordering
           setCurrentReportId(reports[0].id);
-          setAnalysis(reports[0].result);
         }
       } catch (err) {
-        console.error('Failed to load reports:', err);
+        // No existing reports is not an error state - just means none run yet
       } finally {
         setLoading(false);
       }
@@ -69,16 +72,10 @@ function AnalysisPanel({
 
     try {
       const report = await analyzeDocument(documentId);
-
-      setCurrentReportId(report.id);
       setAnalysis(report.result);
+      setCurrentReportId(report.id);
     } catch (err) {
-      console.error('Analysis failed:', err);
-
-      const detail =
-        err.response?.data?.detail ||
-        'Analysis failed. Please try again.';
-
+      const detail = err.response?.data?.detail || 'Analysis failed. Please try again.';
       setError(detail);
     } finally {
       setAnalyzing(false);
@@ -86,38 +83,19 @@ function AnalysisPanel({
   };
 
   const handleDownload = async () => {
+    if (!currentReportId) return;
     try {
-      if (!currentReportId) {
-        setError('No analysis report available for download.');
-        return;
-      }
-
-      const response = await apiClient.get(
-        `/reports/${currentReportId}/download`,
-        {
-          responseType: 'blob',
-        }
-      );
-
+      const response = await apiClient.get(`/reports/${currentReportId}/download`, {
+        responseType: 'blob',
+      });
       const url = URL.createObjectURL(response.data);
-
       const link = document.createElement('a');
       link.href = url;
       link.download = 'analysis-report.pdf';
-
-      document.body.appendChild(link);
       link.click();
-      link.remove();
-
       URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('PDF download failed:', err);
-
-      const detail =
-        err.response?.data?.detail ||
-        'Failed to download PDF report.';
-
-      setError(detail);
+      setError('Could not download the report. Please try again.');
     }
   };
 
@@ -139,105 +117,56 @@ function AnalysisPanel({
 
   if (!analysis) {
     return (
-      <div className="text-center p-3">
-        <p className="text-muted">
-          No analysis has been run yet.
-        </p>
-
-        <Button
-          onClick={handleAnalyze}
-          disabled={analyzing}
-        >
+      <div className="text-center p-4 surface-card">
+        <p className="text-muted mb-3">No analysis has been run yet.</p>
+        <Button className="btn-primary-modern" onClick={handleAnalyze} disabled={analyzing}>
           {analyzing ? 'Analyzing...' : 'Run AI Analysis'}
         </Button>
-
-        {error && (
-          <Alert variant="danger" className="mt-3">
-            {error}
-          </Alert>
-        )}
+        {error && <Alert variant="danger" className="mt-3 mb-0">{error}</Alert>}
       </div>
     );
   }
 
   return (
     <div>
-      <Alert
-        variant="warning"
-        className="py-2 px-3 small"
-      >
-        {analysis.disclaimer}
-      </Alert>
+      <div className="disclaimer-banner">{analysis.disclaimer}</div>
 
       <div className="d-flex justify-content-between align-items-center mb-2">
-        <h6 className="mb-0">
-          Analysis
-        </h6>
-
-        <div>
-          <Button
-            size="sm"
-            variant="outline-secondary"
-            onClick={handleDownload}
-            disabled={!currentReportId}
-            className="me-2"
-          >
+        <span className="fw-semibold" style={{ fontSize: '0.9rem' }}>Analysis Results</span>
+        <div className="d-flex gap-2">
+          <Button size="sm" variant="outline-secondary" onClick={handleDownload}>
             Download PDF
           </Button>
-
-          <Button
-            size="sm"
-            variant="outline-primary"
-            onClick={handleAnalyze}
-            disabled={analyzing}
-          >
+          <Button size="sm" variant="outline-primary" onClick={handleAnalyze} disabled={analyzing}>
             {analyzing ? 'Re-analyzing...' : 'Re-analyze'}
           </Button>
         </div>
       </div>
 
-      {error && (
-        <Alert variant="danger">
-          {error}
-        </Alert>
-      )}
+      {error && <Alert variant="danger">{error}</Alert>}
 
-      <p className="mb-3">
-        {analysis.summary}
-      </p>
+      <div className="exec-summary-card">
+        <div className="label">Executive Summary</div>
+        <p>{analysis.summary}</p>
+      </div>
 
-      <Accordion defaultActiveKey="risks" alwaysOpen>
+      <RiskOverview risks={analysis.risks} />
+
+      <Accordion defaultActiveKey="risks" alwaysOpen className="modern-accordion">
         <Accordion.Item eventKey="risks">
-          <Accordion.Header>
-            Risks ({analysis.risks?.length || 0})
-          </Accordion.Header>
-
+          <Accordion.Header>Risks ({analysis.risks.length})</Accordion.Header>
           <Accordion.Body>
-            {!analysis.risks ||
-            analysis.risks.length === 0 ? (
-              <p className="text-muted mb-0">
-                No specific risks identified.
-              </p>
+            {analysis.risks.length === 0 ? (
+              <p className="text-muted mb-0">No specific risks identified.</p>
             ) : (
               <ListGroup variant="flush">
                 {analysis.risks.map((risk, i) => (
-                  <ListGroup.Item key={i}>
-                    <Badge
-                      bg={
-                        RISK_VARIANTS[risk.risk_level] ||
-                        'secondary'
-                      }
-                      className="me-2"
-                    >
+                  <ListGroup.Item key={i} className="px-0">
+                    <span className={`badge-status ${RISK_BADGE_CLASS[risk.risk_level] || 'badge-status-uploaded'} me-2`}>
                       {risk.risk_level}
-                    </Badge>
-
+                    </span>
                     {risk.description}
-
-                    <PageBadge
-                      page={risk.page_number}
-                      onJumpToPage={onJumpToPage}
-                    />
+                    <PageChip page={risk.page_number} onJumpToPage={onJumpToPage} />
                   </ListGroup.Item>
                 ))}
               </ListGroup>
@@ -246,30 +175,17 @@ function AnalysisPanel({
         </Accordion.Item>
 
         <Accordion.Item eventKey="clauses">
-          <Accordion.Header>
-            Key Clauses ({analysis.key_clauses?.length || 0})
-          </Accordion.Header>
-
+          <Accordion.Header>Key Clauses ({analysis.key_clauses.length})</Accordion.Header>
           <Accordion.Body>
-            {!analysis.key_clauses ||
-            analysis.key_clauses.length === 0 ? (
-              <p className="text-muted mb-0">
-                No key clauses identified.
-              </p>
+            {analysis.key_clauses.length === 0 ? (
+              <p className="text-muted mb-0">No key clauses identified.</p>
             ) : (
               <ListGroup variant="flush">
                 {analysis.key_clauses.map((clause, i) => (
-                  <ListGroup.Item key={i}>
-                    <strong>
-                      {clause.title}
-                    </strong>
-
-                    <PageBadge
-                      page={clause.page_number}
-                      onJumpToPage={onJumpToPage}
-                    />
-
-                    <div className="text-muted small mt-1">
+                  <ListGroup.Item key={i} className="px-0">
+                    <strong>{clause.title}</strong>
+                    <PageChip page={clause.page_number} onJumpToPage={onJumpToPage} />
+                    <div className="text-muted mt-1" style={{ fontSize: '0.82rem' }}>
                       {clause.summary}
                     </div>
                   </ListGroup.Item>
@@ -280,32 +196,16 @@ function AnalysisPanel({
         </Accordion.Item>
 
         <Accordion.Item eventKey="dates">
-          <Accordion.Header>
-            Key Dates ({analysis.key_dates?.length || 0})
-          </Accordion.Header>
-
+          <Accordion.Header>Key Dates ({analysis.key_dates.length})</Accordion.Header>
           <Accordion.Body>
-            {!analysis.key_dates ||
-            analysis.key_dates.length === 0 ? (
-              <p className="text-muted mb-0">
-                No key dates identified.
-              </p>
+            {analysis.key_dates.length === 0 ? (
+              <p className="text-muted mb-0">No key dates identified.</p>
             ) : (
               <ListGroup variant="flush">
                 {analysis.key_dates.map((item, i) => (
-                  <ListGroup.Item key={i}>
-                    <strong>
-                      {item.date_or_deadline}
-                    </strong>
-
-                    {' — '}
-
-                    {item.description}
-
-                    <PageBadge
-                      page={item.page_number}
-                      onJumpToPage={onJumpToPage}
-                    />
+                  <ListGroup.Item key={i} className="px-0">
+                    <strong>{item.date_or_deadline}</strong> &mdash; {item.description}
+                    <PageChip page={item.page_number} onJumpToPage={onJumpToPage} />
                   </ListGroup.Item>
                 ))}
               </ListGroup>
@@ -314,32 +214,16 @@ function AnalysisPanel({
         </Accordion.Item>
 
         <Accordion.Item eventKey="payments">
-          <Accordion.Header>
-            Payment Terms ({analysis.payment_terms?.length || 0})
-          </Accordion.Header>
-
+          <Accordion.Header>Payment Terms ({analysis.payment_terms.length})</Accordion.Header>
           <Accordion.Body>
-            {!analysis.payment_terms ||
-            analysis.payment_terms.length === 0 ? (
-              <p className="text-muted mb-0">
-                No payment terms identified.
-              </p>
+            {analysis.payment_terms.length === 0 ? (
+              <p className="text-muted mb-0">No payment terms identified.</p>
             ) : (
               <ListGroup variant="flush">
                 {analysis.payment_terms.map((item, i) => (
-                  <ListGroup.Item key={i}>
-                    <strong>
-                      {item.amount_or_terms}
-                    </strong>
-
-                    {' — '}
-
-                    {item.description}
-
-                    <PageBadge
-                      page={item.page_number}
-                      onJumpToPage={onJumpToPage}
-                    />
+                  <ListGroup.Item key={i} className="px-0">
+                    <strong>{item.amount_or_terms}</strong> &mdash; {item.description}
+                    <PageChip page={item.page_number} onJumpToPage={onJumpToPage} />
                   </ListGroup.Item>
                 ))}
               </ListGroup>
@@ -348,30 +232,16 @@ function AnalysisPanel({
         </Accordion.Item>
 
         <Accordion.Item eventKey="obligations">
-          <Accordion.Header>
-            Obligations ({analysis.obligations?.length || 0})
-          </Accordion.Header>
-
+          <Accordion.Header>Obligations ({analysis.obligations.length})</Accordion.Header>
           <Accordion.Body>
-            {!analysis.obligations ||
-            analysis.obligations.length === 0 ? (
-              <p className="text-muted mb-0">
-                No obligations identified.
-              </p>
+            {analysis.obligations.length === 0 ? (
+              <p className="text-muted mb-0">No obligations identified.</p>
             ) : (
               <ListGroup variant="flush">
                 {analysis.obligations.map((item, i) => (
-                  <ListGroup.Item key={i}>
-                    <strong>
-                      {item.party}:
-                    </strong>{' '}
-
-                    {item.description}
-
-                    <PageBadge
-                      page={item.page_number}
-                      onJumpToPage={onJumpToPage}
-                    />
+                  <ListGroup.Item key={i} className="px-0">
+                    <strong>{item.party}:</strong> {item.description}
+                    <PageChip page={item.page_number} onJumpToPage={onJumpToPage} />
                   </ListGroup.Item>
                 ))}
               </ListGroup>
@@ -380,24 +250,14 @@ function AnalysisPanel({
         </Accordion.Item>
 
         <Accordion.Item eventKey="recommendations">
-          <Accordion.Header>
-            Recommendations (
-            {analysis.recommendations?.length || 0}
-            )
-          </Accordion.Header>
-
+          <Accordion.Header>Recommendations ({analysis.recommendations.length})</Accordion.Header>
           <Accordion.Body>
-            {!analysis.recommendations ||
-            analysis.recommendations.length === 0 ? (
-              <p className="text-muted mb-0">
-                No recommendations.
-              </p>
+            {analysis.recommendations.length === 0 ? (
+              <p className="text-muted mb-0">No recommendations.</p>
             ) : (
               <ListGroup variant="flush">
                 {analysis.recommendations.map((rec, i) => (
-                  <ListGroup.Item key={i}>
-                    {rec}
-                  </ListGroup.Item>
+                  <ListGroup.Item key={i} className="px-0">{rec}</ListGroup.Item>
                 ))}
               </ListGroup>
             )}
