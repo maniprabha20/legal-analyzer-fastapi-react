@@ -4,6 +4,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import DocumentDetail from './pages/DocumentDetail';
+import ForgotPassword from './pages/ForgotPassword';
 
 function App() {
   return (
@@ -41,6 +42,7 @@ function App() {
           path="*"
           element={<Navigate to="/login" />}
         />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
       </Routes>
     </BrowserRouter>
