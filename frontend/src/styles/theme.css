@@ -448,3 +448,134 @@ body {
 }
 
 .chat-bubble-assistant p:last-child { margin-bottom: 0; }
+/* ==========================================================================
+   Dashboard info sections - AI Tools / How It Works / Footer
+   (append to the end of theme.css - everything above this is unchanged)
+   ========================================================================== */
+
+.section-heading {
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: 0.25rem;
+}
+
+.section-subheading {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1.25rem;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+@media (max-width: 768px) {
+  .feature-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 520px) {
+  .feature-grid { grid-template-columns: 1fr; }
+}
+
+.feature-card {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.feature-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.feature-card .feature-icon {
+  font-size: 1.4rem;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+}
+
+.feature-card .feature-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 0.3rem;
+}
+
+.feature-card .feature-desc {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.how-it-works {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.how-step {
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+}
+
+.how-step .how-num {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 0 auto 0.5rem;
+}
+
+.how-step .how-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.how-arrow {
+  color: var(--color-border);
+  font-size: 1.3rem;
+  align-self: center;
+  margin-top: 0.2rem;
+}
+
+@media (max-width: 768px) {
+  .how-arrow { display: none; }
+  .how-it-works { flex-direction: column; align-items: stretch; }
+}
+
+.app-footer {
+  border-top: 1px solid var(--color-border);
+  padding: 1.5rem 0;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  margin-top: 2rem;
+}
+
+.app-footer strong {
+  color: var(--color-text);
+}
+.pdf-sticky-col {
+  position: sticky;
+  top: 84px;
+  align-self: flex-start;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}

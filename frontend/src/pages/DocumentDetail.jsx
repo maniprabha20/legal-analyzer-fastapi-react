@@ -177,7 +177,7 @@ function DocumentDetail() {
             </div>
 
             <Row>
-              <Col md={7}>
+              <Col md={7} className="pdf-sticky-col">
                 {pdfBlobUrl && (
                   <div className="border rounded p-2 bg-light text-center">
                     <Document
@@ -233,6 +233,7 @@ function DocumentDetail() {
                       documentId={documentId}
                       documentStatus={document?.status}
                       onJumpToPage={goToPage}
+
                     />
                   </Tab>
 

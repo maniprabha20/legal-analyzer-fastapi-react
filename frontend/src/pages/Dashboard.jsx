@@ -6,6 +6,8 @@ import UploadModal from '../components/UploadModal';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from '../components/ToastProvider';
 import Brand from '../components/Brand';
+import { FeatureCardsSection, HowItWorksSection } from '../components/FeatureSections';
+import AppFooter from '../components/AppFooter';
 
 const STATUS_LABELS = {
   uploaded: 'Uploaded',
@@ -97,12 +99,13 @@ function Dashboard() {
   const inProgressCount = documents.filter(
     (d) => d.status === 'uploaded' || d.status === 'processing'
   ).length;
+  const failedCount = documents.filter((d) => d.status === 'failed').length;
 
   return (
     <>
       <Navbar className="app-navbar" variant="dark">
         <Container fluid className="px-0">
-          <Navbar.Brand as={Link} to="/dashboard" className="brand-mark">
+          <Navbar.Brand as={Link} to="/dashboard">
             <Brand />
           </Navbar.Brand>
           <div className="ms-auto d-flex gap-2">
@@ -140,6 +143,10 @@ function Dashboard() {
             <div className="stat-pill">
               <div className="stat-value">{inProgressCount}</div>
               <div className="stat-label">Processing</div>
+            </div>
+            <div className="stat-pill">
+              <div className="stat-value">{failedCount}</div>
+              <div className="stat-label">Failed</div>
             </div>
           </div>
         )}
@@ -229,7 +236,12 @@ function Dashboard() {
             )}
           </>
         )}
+
+        <FeatureCardsSection />
+        <HowItWorksSection />
       </Container>
+
+      <AppFooter />
 
       <UploadModal
         show={showUploadModal}
