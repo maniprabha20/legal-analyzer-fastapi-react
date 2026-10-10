@@ -5,6 +5,7 @@ from documents import router as documents_router
 from reports import router as reports_router 
 from fastapi.middleware.cors import CORSMiddleware
 from user_profile import router as profile_router
+from activity import router as activity_router
 
 
 app = FastAPI(
@@ -28,6 +29,7 @@ app.include_router(auth_router)
 app.include_router(documents_router)
 app.include_router(reports_router)
 app.include_router(profile_router)
+app.include_router(activity_router)
 
 
 @app.get("/health")

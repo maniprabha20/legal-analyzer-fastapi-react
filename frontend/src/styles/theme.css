@@ -14,7 +14,7 @@
   --color-text: #111827;
   --color-text-muted: #6b7280;
   --color-border: #e5e7eb;
-  --color-bg-subtle: #f8fafc;
+  --color-bg-subtle: #EAF6FB;
 
   --radius-sm: 0.5rem;
   --radius-md: 0.65rem;
@@ -92,6 +92,18 @@ body {
   justify-content: center;
   background: radial-gradient(circle at top left, #1e3a8a 0%, #0f172a 60%);
   padding: 1.5rem;
+}
+
+.auth-page-dark {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  box-sizing: border-box;
+  position: relative;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
 }
 
 .auth-card {
@@ -269,10 +281,25 @@ body {
   text-transform: capitalize;
 }
 
-.badge-status-ready { background: #d1fae5; color: #065f46; }
-.badge-status-processing { background: #fef3c7; color: #92400e; }
-.badge-status-uploaded { background: #e5e7eb; color: #374151; }
-.badge-status-failed { background: #fee2e2; color: #991b1b; }
+.badge-status-ready {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge-status-processing {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badge-status-uploaded {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.badge-status-failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
 
 .empty-state {
   text-align: center;
@@ -385,12 +412,32 @@ body {
   color: var(--color-text-muted);
 }
 
-.risk-count-card.high { background: #fef2f2; border-color: #fecaca; }
-.risk-count-card.high .count { color: #991b1b; }
-.risk-count-card.medium { background: #fffbeb; border-color: #fde68a; }
-.risk-count-card.medium .count { color: #92400e; }
-.risk-count-card.low { background: #f0fdf4; border-color: #bbf7d0; }
-.risk-count-card.low .count { color: #065f46; }
+.risk-count-card.high {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.risk-count-card.high .count {
+  color: #991b1b;
+}
+
+.risk-count-card.medium {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.risk-count-card.medium .count {
+  color: #92400e;
+}
+
+.risk-count-card.low {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.risk-count-card.low .count {
+  color: #065f46;
+}
 
 .modern-accordion .accordion-button {
   font-weight: 600;
@@ -447,10 +494,12 @@ body {
   line-height: 1.5;
 }
 
-.chat-bubble-assistant p:last-child { margin-bottom: 0; }
+.chat-bubble-assistant p:last-child {
+  margin-bottom: 0;
+}
+
 /* ==========================================================================
    Dashboard info sections - AI Tools / How It Works / Footer
-   (append to the end of theme.css - everything above this is unchanged)
    ========================================================================== */
 
 .section-heading {
@@ -473,11 +522,15 @@ body {
 }
 
 @media (max-width: 768px) {
-  .feature-grid { grid-template-columns: repeat(2, 1fr); }
+  .feature-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 @media (max-width: 520px) {
-  .feature-grid { grid-template-columns: 1fr; }
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .feature-card {
@@ -556,8 +609,14 @@ body {
 }
 
 @media (max-width: 768px) {
-  .how-arrow { display: none; }
-  .how-it-works { flex-direction: column; align-items: stretch; }
+  .how-arrow {
+    display: none;
+  }
+
+  .how-it-works {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .app-footer {
@@ -572,10 +631,283 @@ body {
 .app-footer strong {
   color: var(--color-text);
 }
+
 .pdf-sticky-col {
   position: sticky;
   top: 84px;
   align-self: flex-start;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
+}
+
+.activity-card {
+  padding: 0.35rem 1.1rem;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.8rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 0.6rem;
+  background: var(--color-primary-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.activity-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.86rem;
+  color: var(--color-text);
+}
+
+.activity-text strong {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.activity-time {
+  font-size: 0.74rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+/* =========================================================
+   LEXORA FOOTER
+   ========================================================= */
+
+.app-footer {
+  margin-top: 4rem;
+  color: #e5e7eb;
+  background: #062f3b;
+}
+
+/* Main footer */
+.app-footer-main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 4rem 3rem;
+  display: grid;
+  grid-template-columns: 1.5fr repeat(4, 1fr);
+  gap: 3rem;
+}
+
+/* Brand */
+.footer-brand {
+  padding-right: 2rem;
+}
+
+.footer-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #ffffff;
+  font-size: 1.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.footer-logo-mark {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #0ea5a8;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.footer-tagline {
+  margin-top: 1.2rem;
+  max-width: 280px;
+  color: #b8d0d5;
+  font-size: 0.92rem;
+  line-height: 1.7;
+}
+
+/* Footer columns */
+.footer-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.footer-column h6 {
+  margin: 0 0 0.9rem;
+  color: #b8f0e8;
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.footer-column a {
+  color: #edf7f8;
+  text-decoration: none;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  transition: color 0.2s ease;
+}
+
+.footer-column a:hover {
+  color: #6ee7df;
+}
+
+/* Bottom dark section */
+.app-footer-bottom {
+  background: #1f2023;
+  padding: 2.8rem 3rem 2rem;
+}
+
+.footer-bottom-brand {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-logo-small {
+  font-size: 1.45rem;
+  color: #aeb2b8;
+}
+
+.footer-logo-small .footer-logo-mark {
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+}
+
+/* Social icons */
+.footer-socials {
+  display: flex;
+  gap: 0.7rem;
+}
+
+.footer-socials a {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #e8f0f2;
+  color: #163e49;
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 800;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.footer-socials a:hover {
+  transform: translateY(-2px);
+  background: #b8f0e8;
+}
+
+.footer-divider {
+  max-width: 1400px;
+  height: 1px;
+  margin: 2rem auto;
+  background: #62666b;
+}
+
+/* Disclaimer */
+.footer-disclaimer {
+  max-width: 1400px;
+  margin: 0 auto;
+  color: #b9bdc2;
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
+/* Links */
+.footer-links {
+  max-width: 1400px;
+  margin: 1.7rem auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.8rem;
+}
+
+.footer-links a {
+  color: #d3d6d9;
+  text-decoration: none;
+  font-size: 0.86rem;
+}
+
+.footer-links a:hover {
+  color: #ffffff;
+}
+
+/* Copyright */
+.footer-copyright {
+  max-width: 1400px;
+  margin: 2rem auto 0;
+  color: #a7aaae;
+  font-size: 0.82rem;
+}
+
+
+/* =========================================================
+   MOBILE FOOTER
+   ========================================================= */
+
+@media (max-width: 900px) {
+  .app-footer-main {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 3rem 1.5rem;
+    gap: 2.5rem 2rem;
+  }
+
+  .footer-brand {
+    grid-column: 1 / -1;
+    padding-right: 0;
+  }
+
+  .app-footer-bottom {
+    padding: 2.5rem 1.5rem 1.8rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .app-footer-main {
+    grid-template-columns: 1fr;
+    padding: 2.8rem 1.5rem;
+    gap: 2.2rem;
+  }
+
+  .footer-brand {
+    grid-column: auto;
+  }
+
+  .footer-bottom-brand {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .footer-links {
+    flex-direction: column;
+    gap: 0.9rem;
+  }
+
+  .footer-disclaimer {
+    font-size: 0.78rem;
+  }
 }

@@ -14,25 +14,28 @@ from fastapi import (
 from fastapi.responses import Response
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from database import get_db
-from models import Document, User, AnalysisReport, ChatMessage
+from models import Document, User, AnalysisReport, ChatMessage, ActivityLog
 from schemas import DocumentResponse, AnalysisResponse, ChatMessageResponse
-from auth import get_current_user 
+from auth import get_current_user
 from fastapi import Query
 from rate_limit import rate_limiter
 from storage import upload_file_to_storage
+from activity import log_activity
 
 from vector_store import (
     delete_document_chunks,
     get_all_chunks_for_document,
     get_document_page_count,
 )
+
 from retrieval import (
     retrieve_relevant_chunks,
     format_chunks_as_context
 )
+
 from llm import ask_llm, AI_DISCLAIMER, analyze_document_text
 from citations import validate_and_clamp_citations
 
@@ -40,12 +43,14 @@ from pdf_extraction import (
     extract_text_from_pdf,
     get_extraction_summary
 )
+
 from ingestion import process_document
 
 from chunking import (
     chunk_pages,
     count_tokens
 )
+
 from storage import upload_file_to_storage
 
 
@@ -53,6 +58,8 @@ router = APIRouter(
     prefix="/documents",
     tags=["documents"]
 )
+
+
 async def _get_owned_document_or_404(
     document_id: int,
     db: AsyncSession,
@@ -74,6 +81,8 @@ async def _get_owned_document_or_404(
         )
 
     return document
+
+
 def _report_to_response(report: AnalysisReport) -> AnalysisResponse:
     return AnalysisResponse(
         id=report.id,
@@ -86,7 +95,6 @@ def _report_to_response(report: AnalysisReport) -> AnalysisResponse:
 UPLOAD_DIR = "uploads"
 ALLOWED_EXTENSION = ".pdf"
 MAX_FILE_SIZE_MB = 20
-
 
 
 @router.post(
@@ -139,12 +147,21 @@ async def upload_document(
 
     await db.refresh(new_doc)
 
+    await log_activity(
+        db,
+        current_user.id,
+        "document_uploaded",
+        new_doc.id
+    )
+
     background_tasks.add_task(
         process_document,
         new_doc.id
     )
 
     return new_doc
+
+
 @router.get(
     "",
     response_model=list[DocumentResponse]
@@ -166,6 +183,8 @@ async def list_documents(
     )
 
     return result.scalars().all()
+
+
 @router.get(
     "/{document_id}",
     response_model=DocumentResponse
@@ -181,11 +200,6 @@ async def get_document(
         db,
         current_user
     )
-
-
-# NOTE: the duplicate second copy of get_document() that was here has been
-# removed - it was dead code silently shadowed by the first definition above,
-# not causing errors, but redundant and worth cleaning up.
 
 
 @router.get("/{document_id}/status")
@@ -228,15 +242,16 @@ async def search_document(
         )
 
     chunks = retrieve_relevant_chunks(
-    question=q,
-    document_id=document_id
-)
+        question=q,
+        document_id=document_id
+    )
+
     return {
-    "query": q,
-    "matches_found": len(chunks),
-    "matches": chunks,
-    "formatted_context_preview": format_chunks_as_context(chunks)[:500]
-}
+        "query": q,
+        "matches_found": len(chunks),
+        "matches": chunks,
+        "formatted_context_preview": format_chunks_as_context(chunks)[:500]
+    }
 
 
 @router.get("/{document_id}/ask")
@@ -246,6 +261,7 @@ async def ask_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(rate_limiter("ask")),
 ):
+
     document = await _get_owned_document_or_404(
         document_id,
         db,
@@ -265,7 +281,9 @@ async def ask_document(
         .limit(6)
     )
 
-    recent_messages = list(reversed(history_result.scalars().all()))
+    recent_messages = list(
+        reversed(history_result.scalars().all())
+    )
 
     chat_history = [
         {"role": m.role, "content": m.content}
@@ -291,7 +309,9 @@ async def ask_document(
     )
 
     if not chunks:
-        answer_text = "I could not find information about this in the document."
+        answer_text = (
+            "I could not find information about this in the document."
+        )
 
         db.add(
             ChatMessage(
@@ -310,6 +330,13 @@ async def ask_document(
         )
 
         await db.commit()
+
+        await log_activity(
+            db,
+            current_user.id,
+            "chat_question_asked",
+            document_id
+        )
 
         return {
             "question": q,
@@ -349,27 +376,13 @@ async def ask_document(
 
     await db.commit()
 
-    return {
-        "question": q,
-        "answer": result["answer"],
-        "disclaimer": result["disclaimer"],
-        "sources_used": len(chunks),
-        "pages_referenced": pages_referenced,
-    }
-    context = format_chunks_as_context(chunks)
-
-    result = ask_llm(
-        question=q,
-        context=context,
-        chat_history=chat_history,
+    await log_activity(
+        db,
+        current_user.id,
+        "chat_question_asked",
+        document_id
     )
 
-    pages_referenced = sorted(set(c["page_number"] for c in chunks))
-
-    db.add(ChatMessage(document_id=document_id, role="user", content=q))
-    db.add(ChatMessage(document_id=document_id, role="assistant", content=result["answer"]))
-    await db.commit()
-
     return {
         "question": q,
         "answer": result["answer"],
@@ -378,7 +391,11 @@ async def ask_document(
         "pages_referenced": pages_referenced,
     }
 
-@router.get("/{document_id}/chat", response_model=list[ChatMessageResponse])
+
+@router.get(
+    "/{document_id}/chat",
+    response_model=list[ChatMessageResponse]
+)
 async def get_chat_history(
     document_id: int,
     db: AsyncSession = Depends(get_db),
@@ -408,7 +425,7 @@ async def get_chat_history(
 async def analyze_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(rate_limiter("analyze")),
 ):
 
     document = await _get_owned_document_or_404(
@@ -435,32 +452,54 @@ async def analyze_document(
 
     try:
         analysis = analyze_document_text(context)
+
     except ValueError as e:
-        raise HTTPException(status_code=502, detail=f"AI analysis failed: {e}")
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI analysis failed: {e}"
+        )
 
     max_page = get_document_page_count(document_id)
-    analysis = validate_and_clamp_citations(analysis, max_page)
+
+    analysis = validate_and_clamp_citations(
+        analysis,
+        max_page
+    )
 
     report = AnalysisReport(
         document_id=document_id,
         result_json=analysis.model_dump_json(),
     )
+
     db.add(report)
+
     await db.commit()
+
     await db.refresh(report)
+
+    await log_activity(
+        db,
+        current_user.id,
+        "analysis_completed",
+        document_id
+    )
 
     return {
         "id": report.id,
         "document_id": report.document_id,
         "result": analysis,
-        
         "created_at": report.created_at,
-    } 
-@router.get("/{document_id}/reports", response_model=list[AnalysisResponse])
+    }
+
+
+@router.get(
+    "/{document_id}/reports",
+    response_model=list[AnalysisResponse]
+)
 async def list_analysis_reports(
     document_id: int,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(rate_limiter("analyze")),
+    current_user: User = Depends(get_current_user),
 ):
 
     await _get_owned_document_or_404(
@@ -471,13 +510,20 @@ async def list_analysis_reports(
 
     result = await db.execute(
         select(AnalysisReport)
-        .where(AnalysisReport.document_id == document_id)
-        .order_by(AnalysisReport.created_at.desc())
+        .where(
+            AnalysisReport.document_id == document_id
+        )
+        .order_by(
+            AnalysisReport.created_at.desc()
+        )
     )
 
     reports = result.scalars().all()
 
-    return [_report_to_response(r) for r in reports]
+    return [
+        _report_to_response(r)
+        for r in reports
+    ]
 
 
 @router.get(
@@ -488,6 +534,7 @@ async def download_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+
     document = await _get_owned_document_or_404(
         document_id,
         db,
@@ -529,6 +576,7 @@ async def delete_document(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+
     document = await _get_owned_document_or_404(
         document_id,
         db,
@@ -547,8 +595,39 @@ async def delete_document(
 
     delete_document_chunks(document_id)
 
+    # Detach activity rows first.
+    # activity_log.document_id has a foreign key to documents.id.
+    await db.execute(
+        update(ActivityLog)
+        .where(
+            ActivityLog.document_id == document_id
+        )
+        .values(
+            document_id=None
+        )
+    )
+
+    # Detach analysis reports before deleting the document.
+    # analysis_reports.document_id also has a foreign key
+    # to documents.id.
+    await db.execute(
+        update(AnalysisReport)
+        .where(
+            AnalysisReport.document_id == document_id
+        )
+        .values(
+            document_id=None
+        )
+    )
+
     await db.delete(document)
 
     await db.commit()
+
+    await log_activity(
+        db,
+        current_user.id,
+        "document_deleted"
+    )
 
     return None

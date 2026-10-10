@@ -19,7 +19,9 @@ function Register() {
       await apiClient.post('/auth/register', { email, password });
       navigate('/login');
     } catch (err) {
-      const detail = err.response?.data?.detail || 'Registration failed. Please try again.';
+      const detail =
+        err.response?.data?.detail ||
+        'Registration failed. Please try again.';
       setError(detail);
     } finally {
       setLoading(false);
@@ -27,19 +29,70 @@ function Register() {
   };
 
   return (
-    <div className="auth-page">
+    <div
+      className="auth-page-light"
+      style={{
+        minHeight: '100vh',
+        width: '100%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1.5rem',
+        boxSizing: 'border-box',
+        background: '#EAF6FB',
+      }}
+    >
       <div className="auth-card">
+
+        {/* Brand */}
         <div className="auth-brand">
-          <span className="brand-icon">⚖️</span>
-          <h1>Create Your Account</h1>
-          <p>Start analyzing legal documents with AI</p>
+          <span
+            className="brand-icon"
+            style={{
+              background: '#0EA5A8',
+              color: '#FFFFFF',
+            }}
+          >
+            ⚖️
+          </span>
+
+          <h1
+            style={{
+              color: '#163E49',
+            }}
+          >
+            Create Your Account
+          </h1>
+
+          <p
+            style={{
+              color: '#526A73',
+            }}
+          >
+            Start analyzing legal documents with AI
+          </p>
         </div>
 
-        {error && <Alert variant="danger" className="py-2">{error}</Alert>}
+        {/* Error */}
+        {error && (
+          <Alert variant="danger" className="py-2">
+            {error}
+          </Alert>
+        )}
 
         <Form onSubmit={handleSubmit}>
+
+          {/* Email */}
           <Form.Group className="mb-3">
-            <Form.Label className="form-label-modern">Email</Form.Label>
+            <Form.Label
+              className="form-label-modern"
+              style={{
+                color: '#163E49',
+              }}
+            >
+              Email
+            </Form.Label>
+
             <Form.Control
               className="form-control-modern"
               type="email"
@@ -47,11 +100,24 @@ function Register() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
               required
+              style={{
+                color: '#163E49',
+                borderColor: '#D5E5EA',
+              }}
             />
           </Form.Group>
 
+          {/* Password */}
           <Form.Group className="mb-2">
-            <Form.Label className="form-label-modern">Password</Form.Label>
+            <Form.Label
+              className="form-label-modern"
+              style={{
+                color: '#163E49',
+              }}
+            >
+              Password
+            </Form.Label>
+
             <Form.Control
               className="form-control-modern"
               type="password"
@@ -60,20 +126,59 @@ function Register() {
               placeholder="At least 8 characters"
               required
               minLength={8}
+              style={{
+                color: '#163E49',
+                borderColor: '#D5E5EA',
+              }}
             />
           </Form.Group>
-          <p className="text-muted mb-4" style={{ fontSize: '0.76rem' }}>
+
+          {/* Password hint */}
+          <p
+            className="mb-4"
+            style={{
+              fontSize: '0.76rem',
+              color: '#526A73',
+            }}
+          >
             Use 8+ characters. Avoid reusing passwords from other sites.
           </p>
 
-          <Button type="submit" className="btn-primary-modern w-100" disabled={loading}>
+          {/* Register button */}
+          <Button
+            type="submit"
+            className="btn-primary-modern w-100"
+            disabled={loading}
+            style={{
+              background: '#0EA5A8',
+              borderColor: '#0EA5A8',
+            }}
+          >
             {loading ? 'Creating account...' : 'Register'}
           </Button>
+
         </Form>
 
-        <div className="auth-footer-link">
-          Already have an account? <Link to="/login">Log in</Link>
+        {/* Login link */}
+        <div
+          className="auth-footer-link"
+          style={{
+            color: '#526A73',
+          }}
+        >
+          Already have an account?{' '}
+          <Link
+            to="/login"
+            style={{
+              color: '#0EA5A8',
+              textDecoration: 'none',
+              fontWeight: '600',
+            }}
+          >
+            Log in
+          </Link>
         </div>
+
       </div>
     </div>
   );

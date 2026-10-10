@@ -8,8 +8,6 @@ import {
   Spinner,
   Alert,
   Badge,
-  Row,
-  Col,
   Tabs,
   Tab,
 } from 'react-bootstrap';
@@ -19,6 +17,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { fetchDocument } from '../api/documents';
 import apiClient from '../api/client';
 import AnalysisPanel from '../components/AnalysisPanel';
+import AppFooter from '../components/AppFooter';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -129,45 +128,118 @@ function DocumentDetail() {
 
   return (
     <>
-      <Navbar bg="dark" variant="dark" className="px-3">
-        <Navbar.Brand
-          as={Link}
-          to="/dashboard"
-          className="text-white text-decoration-none"
-        >
-          AI Legal Document Analyzer
-        </Navbar.Brand>
+      {/* =====================================================
+    NAVBAR
+    ===================================================== */}
+<Navbar
+  className="px-3"
+  variant="dark"
+  style={{
+    background: '#163E49',
+  }}
+>
+  <Navbar.Brand
+    as={Link}
+    to="/dashboard"
+    className="text-decoration-none"
+    style={{
+      color: '#FFFFFF',
+      fontWeight: '700',
+    }}
+  >
+    <span
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.7rem',
+      }}
+    >
+      <span
+        style={{
+          width: '38px',
+          height: '38px',
+          borderRadius: '10px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#0EA5A8',
+          color: '#FFFFFF',
+          fontSize: '1.1rem',
+        }}
+      >
+        ⚖️
+      </span>
 
-        <Button
-          variant="outline-light"
-          onClick={handleLogout}
-          className="ms-auto"
-        >
-          Logout
-        </Button>
-      </Navbar>
+      <span
+        style={{
+          color: '#FFFFFF',
+          fontWeight: '700',
+          fontSize: '0.98rem',
+          lineHeight: '1.2',
+        }}
+      >
+        AI Legal Document Analyzer
+      </span>
+    </span>
+  </Navbar.Brand>
 
-      <Container className="mt-4">
+  <Button
+    variant="outline-light"
+    onClick={handleLogout}
+    className="ms-auto"
+  >
+    Logout
+  </Button>
+</Navbar>
+
+<Container className="mt-4">
+
+        {/* Back to Dashboard */}
         <Button
           variant="link"
           className="ps-0 mb-2"
           onClick={() => navigate('/dashboard')}
+          style={{
+            color: '#0EA5A8',
+            textDecoration: 'none',
+            fontWeight: '600',
+          }}
         >
           &larr; Back to Dashboard
         </Button>
 
+        {/* Loading */}
         {loading && (
           <div className="text-center mt-5">
-            <Spinner animation="border" />
+            <Spinner
+              animation="border"
+              style={{
+                color: '#0EA5A8',
+              }}
+            />
           </div>
         )}
 
-        {error && <Alert variant="danger">{error}</Alert>}
+        {/* Error */}
+        {error && (
+          <Alert variant="danger">
+            {error}
+          </Alert>
+        )}
 
         {!loading && document && (
           <>
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h4 className="mb-0">{document.filename}</h4>
+            {/* =================================================
+                DOCUMENT HEADER
+                ================================================= */}
+            <div className="detail-header">
+              <h4
+                style={{
+                  color: '#163E49',
+                }}
+              >
+                {document.filename}
+              </h4>
 
               <Badge
                 bg={STATUS_VARIANTS[document.status] || 'secondary'}
@@ -176,80 +248,145 @@ function DocumentDetail() {
               </Badge>
             </div>
 
-            <Row>
-              <Col md={7} className="pdf-sticky-col">
-                {pdfBlobUrl && (
-                  <div className="border rounded p-2 bg-light text-center">
-                    <Document
-                      file={pdfBlobUrl}
-                      onLoadSuccess={handlePdfLoadSuccess}
-                      onLoadError={handlePdfLoadError}
-                      loading={
-                        <Spinner animation="border" size="sm" />
-                      }
+            {/* =================================================
+                PDF VIEWER
+                ================================================= */}
+            <div className="mb-4">
+              {pdfBlobUrl && (
+                <div
+                  className="border rounded p-3 text-center"
+                  style={{
+                    background: '#FFFFFF',
+                    borderColor: '#D5E5EA',
+                    boxShadow:
+                      '0 4px 14px rgba(22, 62, 73, 0.08)',
+                  }}
+                >
+                  <Document
+                    file={pdfBlobUrl}
+                    onLoadSuccess={handlePdfLoadSuccess}
+                    onLoadError={handlePdfLoadError}
+                    loading={
+                      <Spinner
+                        animation="border"
+                        size="sm"
+                        style={{
+                          color: '#0EA5A8',
+                        }}
+                      />
+                    }
+                  >
+                    {/* Center PDF Page */}
+                    <div
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        justifyContent: 'center',
+                      }}
                     >
                       <Page
                         pageNumber={pageNumber}
-                        width={480}
+                        width={1100}
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
                       />
-                    </Document>
+                    </div>
+                  </Document>
 
-                    {numPages > 0 && (
-                      <div className="d-flex justify-content-center align-items-center gap-3 mt-3">
-                        <Button
-                          size="sm"
-                          variant="outline-secondary"
-                          onClick={handlePrevious}
-                          disabled={pageNumber <= 1}
+                  {/* =================================================
+                      PDF PAGE NAVIGATION
+                      ================================================= */}
+                  {numPages > 0 && (
+                    <div
+                      className="d-flex justify-content-center align-items-center gap-3 mt-3"
+                      style={{
+                        color: '#526A73',
+                      }}
+                    >
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={handlePrevious}
+                        disabled={pageNumber <= 1}
+                        style={{
+                          borderColor: '#D5E5EA',
+                          color: '#163E49',
+                        }}
+                      >
+                        Previous
+                      </Button>
+
+                      <span>
+                        Page{' '}
+                        <strong
+                          style={{
+                            color: '#0EA5A8',
+                          }}
                         >
-                          Previous
-                        </Button>
-
-                        <span>
-                          Page <strong>{pageNumber}</strong> of{' '}
-                          <strong>{numPages}</strong>
-                        </span>
-
-                        <Button
-                          size="sm"
-                          variant="outline-secondary"
-                          onClick={handleNext}
-                          disabled={pageNumber >= numPages}
+                          {pageNumber}
+                        </strong>{' '}
+                        of{' '}
+                        <strong
+                          style={{
+                            color: '#163E49',
+                          }}
                         >
-                          Next
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Col>
+                          {numPages}
+                        </strong>
+                      </span>
 
-              <Col md={5}>
-                <Tabs defaultActiveKey="analysis" className="mb-3">
-                  <Tab eventKey="analysis" title="Analysis">
-                    <AnalysisPanel
-                      documentId={documentId}
-                      documentStatus={document?.status}
-                      onJumpToPage={goToPage}
+                      <Button
+                        size="sm"
+                        variant="outline-secondary"
+                        onClick={handleNext}
+                        disabled={pageNumber >= numPages}
+                        style={{
+                          borderColor: '#D5E5EA',
+                          color: '#163E49',
+                        }}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
-                    />
-                  </Tab>
+            {/* =================================================
+                ANALYSIS + CHAT
+                ================================================= */}
+            <Tabs
+              defaultActiveKey="analysis"
+              className="mb-3"
+            >
+              <Tab
+                eventKey="analysis"
+                title="Analysis"
+              >
+                <AnalysisPanel
+                  documentId={documentId}
+                  documentStatus={document?.status}
+                  onJumpToPage={goToPage}
+                />
+              </Tab>
 
-                  <Tab eventKey="chat" title="Chat">
-                    <ChatPanel
-                      documentId={documentId}
-                      documentStatus={document?.status}
-                      onJumpToPage={goToPage}
-                    />
-                  </Tab>
-                </Tabs>
-              </Col>
-            </Row>
+              <Tab
+                eventKey="chat"
+                title="Chat"
+              >
+                <ChatPanel
+                  documentId={documentId}
+                  documentStatus={document?.status}
+                  onJumpToPage={goToPage}
+                />
+              </Tab>
+            </Tabs>
           </>
         )}
       </Container>
+
+      <AppFooter />
     </>
   );
 }

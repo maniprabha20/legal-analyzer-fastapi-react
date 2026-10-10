@@ -42,15 +42,44 @@ function Login() {
   };
 
   return (
-    <div className="auth-page">
+    <div
+      className="auth-page-dark"
+      style={{
+        background: '#EAF6FB',
+      }}
+    >
       <div className="auth-card">
 
+        {/* Brand */}
         <div className="auth-brand">
-          <span className="brand-icon">⚖️</span>
-          <h1>AI Legal Document Analyzer</h1>
-          <p>Sign in to analyze contracts with AI</p>
+          <span
+            className="brand-icon"
+            style={{
+              background: '#0EA5A8',
+              color: '#FFFFFF',
+            }}
+          >
+            ⚖️
+          </span>
+
+          <h1
+            style={{
+              color: '#163E49',
+            }}
+          >
+            AI Legal Document Analyzer
+          </h1>
+
+          <p
+            style={{
+              color: '#526A73',
+            }}
+          >
+            Sign in to analyze contracts with AI
+          </p>
         </div>
 
+        {/* Error */}
         {error && (
           <Alert variant="danger" className="py-2">
             {error}
@@ -61,7 +90,12 @@ function Login() {
 
           {/* Email */}
           <Form.Group className="mb-3">
-            <Form.Label className="form-label-modern">
+            <Form.Label
+              className="form-label-modern"
+              style={{
+                color: '#163E49',
+              }}
+            >
               Email
             </Form.Label>
 
@@ -72,12 +106,21 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@company.com"
               required
+              style={{
+                color: '#163E49',
+                borderColor: '#D5E5EA',
+              }}
             />
           </Form.Group>
 
           {/* Password */}
           <Form.Group className="mb-4">
-            <Form.Label className="form-label-modern">
+            <Form.Label
+              className="form-label-modern"
+              style={{
+                color: '#163E49',
+              }}
+            >
               Password
             </Form.Label>
 
@@ -90,7 +133,11 @@ function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 required
-                style={{ paddingRight: '50px' }}
+                style={{
+                  paddingRight: '50px',
+                  color: '#163E49',
+                  borderColor: '#D5E5EA',
+                }}
               />
 
               {/* Eye / Eye-off button */}
@@ -107,7 +154,7 @@ function Login() {
                   transform: 'translateY(-50%)',
                   border: 'none',
                   background: 'transparent',
-                  color: '#6b7280',
+                  color: '#526A73',
                   cursor: 'pointer',
                   padding: '4px',
                   display: 'flex',
@@ -151,31 +198,37 @@ function Login() {
 
             </div>
           </Form.Group>
+
+          {/* Forgot Password */}
           <div
-  style={{
-    textAlign: 'right',
-    marginTop: '-15px',
-    marginBottom: '20px',
-  }}
->
-  <Link
-    to="/forgot-password"
-    style={{
-      fontSize: '0.85rem',
-      color: '#2563eb',
-      textDecoration: 'none',
-      fontWeight: '500',
-    }}
-  >
-    Forgot Password?
-  </Link>
-</div>
+            style={{
+              textAlign: 'right',
+              marginTop: '-15px',
+              marginBottom: '20px',
+            }}
+          >
+            <Link
+              to="/forgot-password"
+              style={{
+                fontSize: '0.85rem',
+                color: '#0EA5A8',
+                textDecoration: 'none',
+                fontWeight: '500',
+              }}
+            >
+              Forgot Password?
+            </Link>
+          </div>
 
           {/* Login button */}
           <Button
             type="submit"
             className="btn-primary-modern w-100"
             disabled={loading}
+            style={{
+              background: '#0EA5A8',
+              borderColor: '#0EA5A8',
+            }}
           >
             {loading ? 'Signing in...' : 'Log In'}
           </Button>
@@ -183,9 +236,23 @@ function Login() {
         </Form>
 
         {/* Register link */}
-        <div className="auth-footer-link">
+        <div
+          className="auth-footer-link"
+          style={{
+            color: '#526A73',
+          }}
+        >
           Don't have an account?{' '}
-          <Link to="/register">Create one</Link>
+          <Link
+            to="/register"
+            style={{
+              color: '#0EA5A8',
+              textDecoration: 'none',
+              fontWeight: '600',
+            }}
+          >
+            Create one
+          </Link>
         </div>
 
       </div>

@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import DocumentDetail from './pages/DocumentDetail';
 import ForgotPassword from './pages/ForgotPassword';
+import LandingPage from './pages/LandingPage';
 
 function App() {
   return (
@@ -43,7 +44,10 @@ function App() {
           element={<Navigate to="/login" />}
         />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-
+        <Route
+  path="/"
+  element={<LandingPage />}
+/>
       </Routes>
     </BrowserRouter>
   );
